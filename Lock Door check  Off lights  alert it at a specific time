@@ -1,0 +1,93 @@
+/**
+ *  Lock it at a specific time
+ *
+ *  Copyright 2014 Erik Thayer
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License. You may obtain a copy of the License at:
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+ *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+ *  for the specific language governing permissions and limitations under the License.
+ *
+ */
+definition(
+    name: "Lock Door/Off alert it at a specific time",
+    namespace: "SkentSmartThings",
+    author: "Skent",
+    description: "Make sure a door is locked at a specific time.  Option to add door contact sensor to only lock if closed.",
+    category: "Safety & Security",
+    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
+    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png"
+)
+
+
+preferences {
+  section("At this time every day") {
+    input "time", "time", title: "Time of Day"
+  }
+  section("Lock all these door") {
+    input "locks","capability.lock", multiple: true
+  }
+  section("Make sure it's closed..."){
+    input "contacts", "capability.contactSensor", title: "Which contact sensor?", required: false, multiple: true
+  }
+  section("Turn off lights..."){
+		input "switchs", "capability.switch", multiple: true
+	}
+  section( "Notifications" ) {
+    input "sendPushMessage", "enum", title: "Send a push notification?", metadata:[values:["Yes", "No"]], required: false
+    input "phone", "phone", title: "Send a text message?", required: false
+  } 
+}
+def installed() {
+  schedule(time, "setTimeCallback")
+
+}
+
+def updated(settings) {
+  unschedule()
+  schedule(time, "setTimeCallback")
+}
+
+def setTimeCallback() {
+  for (cts in contacts) {
+       if (cts) {
+         doorOpenCheck(cts)
+       } 
+  }
+  
+  for (lock in locks) {
+       lock.lock()
+  }
+         
+  switchs.off()
+  
+}
+
+def doorOpenCheck(cts) {
+  def currentState = cts.contactState
+  if (currentState?.value == "open") {
+    def msg = "${cts.displayName} is open.Please check."
+    log.info msg
+    if (sendPushMessage) {
+      sendPush msg
+    }
+    if (phone) {
+      sendSms phone, msg
+    }
+}
+}
+
+def lockMessage() {
+  def msg = "Locking ${lock.displayName} due to scheduled lock."
+  log.info msg
+  if (sendPushMessage) {
+    sendPush msg
+  }
+  if (phone) {
+    sendSms phone, msg
+  }
+}
