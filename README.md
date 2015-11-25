@@ -1,2 +1,0 @@
-# SkentSmartThings
-SkentSmartThings
